@@ -21,8 +21,8 @@ export default function Footer(){
                 I help companies improve their on-line interactions with customers. My objective is to build intuitive and efficient software that helps businesses grow.
                 </p>
                 <div>
-                    <a href="https://github.com/daniel-lobster/stock_montecarlo" target="_blank" className="mt-5"  style={{ color: '#3cfefe'}}>GitHub <span><i className="fa fa-angle-right" aria-hidden="true"></i></span></a>
-                    <a href="https://github.com/daniel-lobster/stock_montecarlo" target="_blank" className="mt-5"  style={{ color: '#3cfefe', marginLeft:"1em"}}>YouTube <span><i className="fa fa-angle-right" aria-hidden="true"></i></span></a>
+                    <a href="https://github.com/daniel-lobster/stock_montecarlo" target="_blank" className="mt-5"  style={{ color: '#3cfefe'}}>GitHub<span><i className="fa fa-angle-right" aria-hidden="true"></i></span></a>
+                    <a href="https://www.youtube.com/watch?v=5wiC_8Lq3u8" target="_blank" className="mt-5"  style={{ color: '#3cfefe', marginLeft:"1em"}}>YouTube<span><i className="fa fa-angle-right" aria-hidden="true"></i></span></a>
                 </div>
             </div>
         </div>
