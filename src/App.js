@@ -33,15 +33,17 @@ function App() {
     const [company52WeekLowDate,setCompany52WeekLowDate]= useState('');
     const [companyBeta,setCompanyBeta]= useState('');
     const [companyPERatio,setCompanyPERatio]= useState('');
-    const [companyNews,setCompanyNews]= useState([]);
+
 
     const [needTicker,setNeedTicker] = useState(false)
-    const [today_minus_x_days,setToday_minus_x_days]= useState(365);
-    const [needMinusDays,setNeedMinusDays] = useState(false)
+
     const [days_in_the_future,setDays_in_the_future]= useState(100);
     const [needForecast,setNeedForecast] = useState(false)
     const [number_of_simulations,setNumber_of_simulations]= useState(100);
     const [needNumberOfSimulations,setNeedNumberOfSimulations] = useState(false)
+    const [API_daily_limit_reached,setAPI_daily_limit_reached] = useState(false)
+
+
     const [futureDay,setFutureDay]= useState("");
     const [run,setRun]= useState(true);
     const [predictedDatakeys, setPredictedDatakeys] =useState([]);
@@ -73,6 +75,8 @@ function App() {
         setDailyPriceChangeHistogram([]);
         setDailyPriceChangeAverage(0);
         setDailyPriceChangeStandardDeviation(0);
+        setLastPrice(0)
+        setFutureDay("")
 
         // getData() and monteCarlo() share formatted_received_data    
         let formatted_received_data  = [];
@@ -80,14 +84,11 @@ function App() {
         // Clear all warnings to make sure you don't have unnecessary ones    
         setNeedNumberOfSimulations(false)
         setNeedForecast(false)
-        setNeedMinusDays(false)
         setNeedTicker(false)
+        setAPI_daily_limit_reached(false)
 
         //Data validation
 
-        if (today_minus_x_days <= 0 || today_minus_x_days=='') { 
-            setNeedMinusDays(true)
-        }
         if (days_in_the_future < 0 || days_in_the_future=='') { 
             setNeedForecast(true)
         }
@@ -99,8 +100,6 @@ function App() {
 
         if(ticker ==""){
             setNeedTicker(true)
-        } else if (today_minus_x_days <= 0 || today_minus_x_days=='') { 
-            setNeedMinusDays(true)
         } else if (days_in_the_future < 0 || days_in_the_future=='') { 
             setNeedForecast(true)
         } else if (number_of_simulations < 0 || number_of_simulations=='') { 
@@ -114,41 +113,63 @@ function App() {
 
         function getdata(callback){
 
-            //create a connection with finnhub
+            // stock historical price coming from alphavantage
+            // this uses a free account with a limit of 25 API calls per day
+            // it gets 100 days of data
+            var url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}&datatype=json&apikey=DHDLO2H70JGALA6R`;
 
+
+            fetch(url)
+                .then(response => {
+                    if (response.ok) {
+                        return response.json(); // Parse the response data as JSON
+                    } else {
+                        throw new Error('API request failed');
+                    }
+                })
+                .then(data => {
+
+                    // validate whether the API call has data
+                    // there may be a response but it could be an error message
+                    if (data['Time Series (Daily)']){
+
+                        // we get an object back from alphavantage
+                        // we iterate through the object to get the data out
+                        for (const [key, value] of Object.entries(data['Time Series (Daily)'])) {
+
+                            let time = new Date(key).getTime()
+                            let price = Number(value['4. close'])
+                            formatted_received_data.push({time:time,price:price})
+                        }
+
+                        // the order of the list of objects matters
+                        // if not reversed the latest date will show on the left of the graph
+                        formatted_received_data.reverse()
+
+                        setLastPrice(formatted_received_data[formatted_received_data.length-1].price)
+                        callback()
+
+                    // this Error Message comes when an invalid ticker is used
+                    } else if (data['Error Message']){
+                        setNeedTicker(true)
+
+                    // this comes when the daily limit has been reached
+                    } else if (data['Information']) {
+                        setAPI_daily_limit_reached(true)
+                    }
+
+                })
+                .catch(error => {
+                    // Handle any errors here
+                    console.log(error); 
+                });
+
+            //create a connection with finnhub
             const api_key = finnhub.ApiClient.instance.authentications['api_key'];
-            api_key.apiKey = "ckb23k9r01ql5f1naln0ckb23k9r01ql5f1nalng"
+            api_key.apiKey = "cupruspr01qk8dnm1nb0cupruspr01qk8dnm1nbg"
             const finnhubClient = new finnhub.DefaultApi()
 
-            //start_date = unix timestamp seconds
-            //Date.now() = unix timestamp milisecond
-
-            //the start date is today minus 365 days
-            let start_date = Math.floor(Date.now()/1000-(24*60*60) * today_minus_x_days)
-
-            //make finnhub api call
-
-            finnhubClient.stockCandles(ticker, "D", start_date , Date.now(), (error, data_received, response) => {
-                
-                //check whether data came back from the call
-                if (data_received.s == "ok"){
-                    
-                    for (let x in data_received.c){
-                        let time = data_received.t[x]
-                        let price = data_received.c[x]
-                        formatted_received_data.push({time:time*1000,price:price})                
-                    }
-                    setLastPrice(formatted_received_data[formatted_received_data.length-1].price)
-                    callback()
-
-                } else {
-                    // if nothing came back it is likely because the ticker is invalid
-                    setNeedTicker(true)
-
-                }
-               
-            })
-
+            // we use finnhub to get information on the company
             finnhubClient.companyProfile2({'symbol': ticker}, (error, data, response) => {
 
                 setCompanyName(data.name)
@@ -185,7 +206,6 @@ function App() {
         function monteCarlo(){
 
             //the function below will return an object with the average and standard deviation of the daily price change
-
             let daily_price_change_average_and_SD= getDailyPriceChangeAverageAndSD(formatted_received_data)
 
             //We have to unpack what comes back in two steps
@@ -194,7 +214,7 @@ function App() {
             let daily_price_change_average_non_state = daily_price_change_average_and_SD.average
 
             let daily_price_change_standard_deviation_non_state = daily_price_change_average_and_SD.standard_deviation
-
+            
             setDailyPriceChangeAverage(daily_price_change_average_non_state)
 
             setDailyPriceChangeStandardDeviation(daily_price_change_standard_deviation_non_state)
@@ -216,16 +236,11 @@ function App() {
                 )
             }
 
-
             // montecarlo simulations
-
 
             let predictedDatakeys_non_state = []
 
             //this for loop will determine the number of simulations i.e. how many montecarlo lines
-
-
-
             for(let number = 0 ; number < number_of_simulations ; number++){
 
                 let key ='predicted_price_'+number
@@ -235,8 +250,6 @@ function App() {
                 predicted_prices[0][key] = formatted_received_data[formatted_received_data.length-1].price
 
                 //this for loop actually creates each montecarlo line
-
-
                 for (let i = 1; i<predicted_prices.length; i += 1){
                     predicted_prices[i][key] = predicted_prices[i-1][key]+GetNormallyDistributedRandomNumber(daily_price_change_average_non_state, daily_price_change_standard_deviation_non_state)  
                 }
@@ -271,11 +284,9 @@ function App() {
             setFutureDay(final_day_string)
 
             //final step: merge the data received from finnhub and the predicted prices
-            
             let final_array = formatted_received_data.concat(predicted_prices)
 
             //store data in graphData
-
             setGraphPriceAndPrediction(final_array)
 
         }
@@ -308,16 +319,13 @@ function App() {
                     <img src={companyLogo} alt="logo" style={{height:"55.99px", marginLeft:"1em"}}></img>
                 </div>
                 <div className = "d-flex" style= {{marginBottom:"1em"}}>
-                    <h6>Stock price from finnhub.io</h6>
+                    <h6>Stock price from alphavantage.co (25 free API calls per day)</h6>
                 </div>
                 <div className = "d-flex" style={{marginBottom:"3em"}}>
                     <YourInput
                         ticker = {ticker}
                         setTicker = {setTicker}
                         needTicker = {needTicker}
-                        today_minus_x_days = {today_minus_x_days}
-                        setToday_minus_x_days = {setToday_minus_x_days}
-                        needMinusDays = {needMinusDays}
                         days_in_the_future = {days_in_the_future}
                         setDays_in_the_future = {setDays_in_the_future}
                         needForecast = {needForecast}
@@ -325,6 +333,7 @@ function App() {
                         setNumber_of_simulations = {setNumber_of_simulations}
                         needNumberOfSimulations = {needNumberOfSimulations}
                         run_function = {run_function}
+                        API_daily_limit_reached = {API_daily_limit_reached}
                     />
                     <HistoricalPriceAndPrediction
                         lastPrice = {lastPrice}
