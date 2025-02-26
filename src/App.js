@@ -4,6 +4,10 @@ import {GetNormallyDistributedRandomNumber} from './normal_distribution';
 import {getDailyPriceChangeAverageAndSD} from './get_daily_price_change_histogram';
 import {getPredictedPriceHistogram} from './get_predicted_price_histogram';
 
+// MAKE SURE YOU SET UP YOU OWN API KEYS !!! This app uses the free tier. 
+import {alphavantage_apikey} from './API_keys.js'
+import {finnhub_apikey} from './API_keys.js'
+
 import Footer from './components/Footer';
 import CompanyProfile from './components/CompanyProfile';
 import HistogramPredictedPrices from './components/HistogramPredictedPrices';
@@ -116,7 +120,8 @@ function App() {
             // stock historical price coming from alphavantage
             // this uses a free account with a limit of 25 API calls per day
             // it gets 100 days of data
-            var url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}&datatype=json&apikey=DHDLO2H70JGALA6R`;
+            // MAKE SURE YOU SET UP YOU OWN ALPHAVANTAGE API KEY !!! IT IS FREE !!
+            var url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}&datatype=json&apikey=${alphavantage_apikey}`;
 
 
             fetch(url)
@@ -166,7 +171,9 @@ function App() {
 
             //create a connection with finnhub
             const api_key = finnhub.ApiClient.instance.authentications['api_key'];
-            api_key.apiKey = "cupruspr01qk8dnm1nb0cupruspr01qk8dnm1nbg"
+
+            // MAKE SURE YOU SET UP YOU OWN FINNHUB API KEY !!! IT IS FREE !!
+            api_key.apiKey = finnhub_apikey
             const finnhubClient = new finnhub.DefaultApi()
 
             // we use finnhub to get information on the company
